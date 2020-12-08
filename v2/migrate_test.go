@@ -45,18 +45,18 @@ func TestGetNeedMigrateFiles(t *testing.T) {
 	assert.Nil(t, DelAll())
 	assert.Nil(t, InitMigrationTable())
 	Register(&testdata.TestFile{})
-	needMigrateFiles := getNeedMigrateFiles(Files, math.MaxInt64)
+	needMigrateFiles := getNeedMigrateFiles(files, math.MaxInt64)
 	assert.NotNil(t, needMigrateFiles)
-	assert.Equal(t, len(Files), len(needMigrateFiles))
+	assert.Equal(t, len(files), len(needMigrateFiles))
 	// 手动插入一条已经迁移的数据
 	m := Migration{
-		Migration: Files[0].Key(),
+		Migration: files[0].Key(),
 		Batch:     1,
 	}
 	DB.Save(&m)
 
 	// 此时没有需要迁移的数据了
-	needMigrateFiles = getNeedMigrateFiles(Files, math.MaxInt64)
+	needMigrateFiles = getNeedMigrateFiles(files, math.MaxInt64)
 	assert.Equal(t, 0, len(needMigrateFiles))
 }
 
@@ -69,14 +69,14 @@ func TestGetNeedRollbackKeys(t *testing.T) {
 	assert.Equal(t, 0, len(needRollbackMs))
 
 	m := Migration{
-		Migration: Files[0].Key(),
+		Migration: files[0].Key(),
 		Batch:     1,
 	}
 	gdb.Def().Create(&m)
 
 	needRollbackMs = getNeedRollbackKeys(1)
 	assert.Equal(t, 1, len(needRollbackMs))
-	assert.Equal(t, Files[0].Key(), needRollbackMs[0].Key())
+	assert.Equal(t, files[0].Key(), needRollbackMs[0].Key())
 }
 
 func TestGetNextBatchNo(t *testing.T) {
@@ -87,7 +87,7 @@ func TestGetNextBatchNo(t *testing.T) {
 	nextBatch = getNextBatchNo()
 	assert.Equal(t, uint(1), nextBatch)
 	m := Migration{
-		Migration: Files[0].Key(),
+		Migration: files[0].Key(),
 		Batch:     nextBatch,
 	}
 	gdb.Def().Create(&m)

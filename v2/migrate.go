@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/zhan3333/gdb/v2"
-	"gorm.io/gorm"
 	"math"
 )
 
@@ -18,14 +17,15 @@ func (Migration) TableName() string {
 	return DefaultTableName
 }
 
+// 迁移文件接口
 type File interface {
 	Key() string
-	Up(tx *gorm.DB) error
-	Down(tx *gorm.DB) error
+	Up(tx *gdb.Entry) error
+	Down(tx *gdb.Entry) error
 }
 
 // 定义的迁移文件需要在这里注册
-var Files []File
+var files []File
 
 // 使用的数据库连接
 var DB *gdb.Entry
@@ -37,12 +37,12 @@ func InitMigrationTable() error {
 
 // 注册迁移文件
 func Register(file File) {
-	for _, f := range Files {
+	for _, f := range files {
 		if f.Key() == file.Key() {
 			return
 		}
 	}
-	Files = append(Files, file)
+	files = append(files, file)
 }
 
 // 获取需要迁移的 migrateFiles
@@ -77,7 +77,7 @@ func getNeedRollbackKeys(step int) []File {
 	if step < 1 {
 		return ans
 	}
-	for _, migrateFile := range Files {
+	for _, migrateFile := range files {
 		keyMigrateFile[migrateFile.Key()] = migrateFile
 	}
 	cur := 0
@@ -113,7 +113,7 @@ func getNextBatchNo() uint {
 	return batch
 }
 
-func createMigrate(migration string, batch uint) (err error) {
+func InitMigrateTable(migration string, batch uint) (err error) {
 	m := Migration{
 		Migration: migration,
 		Batch:     batch,
@@ -132,31 +132,23 @@ func deleteMigrate(migration string) (err error) {
 
 // 执行迁移
 func Migrate(step int) error {
-	var err error
-	err = InitMigrationTable()
+	err := InitMigrationTable()
 	if err != nil {
-		return errors.Wrap(err, "create migrate table failed")
+		return errors.Wrapf(err, "[migrate failed] %+v", err)
 	}
-	mfs := getNeedMigrateFiles(Files, step)
+	mfs := getNeedMigrateFiles(files, step)
 	nextBatch := getNextBatchNo()
 	if len(mfs) == 0 {
 		return nil
 	}
 	for _, mf := range mfs {
-		// transaction
-		err = DB.Transaction(func(tx *gorm.DB) error {
-			err = mf.Up(tx)
-			if err != nil {
-				return errors.Wrapf(err, "[migrate failed] %s: %s", mf.Key(), err.Error())
-			}
-			err = createMigrate(mf.Key(), nextBatch)
-			if err != nil {
-				return errors.Wrapf(err, "[migrate failed] %s: %s", mf.Key(), err.Error())
-			}
-			return nil
-		})
+		err = mf.Up(DB)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "[migrate failed] %s", mf.Key())
+		}
+		err = InitMigrateTable(mf.Key(), nextBatch)
+		if err != nil {
+			return errors.Wrapf(err, "[migrate failed] %s", mf.Key())
 		}
 	}
 	return nil
@@ -170,19 +162,13 @@ func Rollback(step int) error {
 		return nil
 	}
 	for _, mf := range mfs {
-		err = DB.Transaction(func(tx *gorm.DB) error {
-			err = mf.Down(tx)
-			if err != nil {
-				return errors.Wrapf(err, "[Rollback failed] %s: %s", mf.Key(), err.Error())
-			}
-			err = deleteMigrate(mf.Key())
-			if err != nil {
-				return errors.Wrapf(err, "[Rollback failed] %s: %s", mf.Key(), err.Error())
-			}
-			return nil
-		})
+		err = mf.Down(DB)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "[Rollback failed] %s", mf.Key())
+		}
+		err = deleteMigrate(mf.Key())
+		if err != nil {
+			return errors.Wrapf(err, "[Rollback failed] %s", mf.Key())
 		}
 	}
 	return nil
@@ -203,10 +189,7 @@ func Fresh() error {
 	if err := DelAll(); err != nil {
 		return err
 	}
-	if err := Migrate(math.MaxInt64); err != nil {
-		return err
-	}
-	return nil
+	return Migrate(math.MaxInt64)
 }
 
 // 删除所有表

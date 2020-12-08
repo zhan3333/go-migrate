@@ -1,6 +1,8 @@
 package testdata
 
-import "gorm.io/gorm"
+import (
+	"github.com/zhan3333/gdb/v2"
+)
 
 type TestFile struct {
 }
@@ -8,11 +10,11 @@ type TestFile struct {
 func (TestFile) Key() string {
 	return "TestFile"
 }
-func (TestFile) Up(tx *gorm.DB) error {
-	tx.Exec("create table test (id int)")
+func (TestFile) Up(db *gdb.Entry) error {
+	db.Exec("create table test (id int)")
 	return nil
 }
-func (TestFile) Down(tx *gorm.DB) error {
-	tx.Exec("drop table test")
+func (TestFile) Down(db *gdb.Entry) error {
+	db.Exec("drop table test")
 	return nil
 }
