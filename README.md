@@ -8,8 +8,6 @@ go gorm 数据库版本迁移, 支持 MySQL 数据库
 ```go
 package testdata
 
-import "github.com/jinzhu/gorm"
-
 type FooMigrateFile struct {
 }
 
