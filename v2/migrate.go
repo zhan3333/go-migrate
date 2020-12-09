@@ -177,7 +177,7 @@ func Rollback(step int) error {
 // 获取连接中的所有表
 func Tables() ([]string, error) {
 	var tables []string
-	err := DB.Raw("show tables").Pluck("Tables_in_mysql", &tables).Error
+	err := DB.Raw("show tables").Scan(&tables).Error
 	if err != nil {
 		return tables, err
 	}

@@ -2,10 +2,10 @@ package migrate
 
 import (
 	"errors"
-	"github.com/jinzhu/gorm"
 	"github.com/stretchr/testify/assert"
 	"github.com/zhan3333/gdb/v2"
-	"github.com/zhan3333/go-migrate/testdata"
+	"github.com/zhan3333/go-migrate/v2/testdata"
+	"gorm.io/gorm"
 	"math"
 	"os"
 	"testing"
@@ -190,6 +190,7 @@ func TestTruncate(t *testing.T) {
 	assert.Nil(t, Truncate("test"))
 	test3 := testdata.Test{}
 	err = DB.First(&test3).Error
+	t.Logf("%+v", err)
 	assert.True(t, errors.Is(err, gorm.ErrRecordNotFound))
 	assert.True(t, test3.ID == 0)
 }
